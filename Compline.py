@@ -1,40 +1,19 @@
 import sublime, sublime_plugin, re
 
 class ComplineCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
 
-	def run(self, edit):
+        targetLine = view.line(view.sel()[0].begin())
+        targetContent = view.substr(targetLine).lstrip()
+        count = {targetContent: 0}
+        for line in view.lines(sublime.Region(0, view.size())):
+            lineContent = view.substr(line).lstrip()
+            if lineContent.startswith(targetContent):
+                key = lineContent.strip()
+                count[key] = count.get(key, 0) + 1
+        candidates = [x for x, y in sorted(count.items(), key=lambda (x, y): -y)]
 
-		def uniq(seq): 
-			checked = []
-			for e in seq:
-				if e.strip() not in checked:
-					checked.append(e)
-			return checked
-
-		
-		def target():
-			line = self.view.line(self.view.sel()[0].begin())
-			return self.view.substr(line)
-
-		def foo(index):
-			if(index > -1):
-				for i in range(len(self.view.sel())):
-					line = self.view.line(self.view.sel()[i].begin())
-					src = self.view.substr(line)
-					match = re.search(r"$", src)
-					if(match):
-						end = match.end()
-						match = re.search(r"\S", src)
-						if(match):
-							start = match.start()
-						else:
-							start = self.view.sel()[i].begin()
-							end = line.end()
-						length = end - start
-						begin = self.view.sel()[i].begin()-length
-						self.view.replace(edit, sublime.Region(begin, self.view.sel()[i].end()), matches[index])
-		region = sublime.Region(0, self.view.size())
-		lines = self.view.lines(region)
-		target = target().strip()
-		matches = uniq([self.view.substr(line).lstrip() for line in lines if self.view.substr(line).lstrip().startswith(target)])
-		sublime.active_window().show_quick_panel(matches, foo)
+        def on_done(index):
+            view.replace(edit, targetLine, candidates[index])
+        sublime.active_window().show_quick_panel(candidates, on_done)
